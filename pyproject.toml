@@ -21,6 +21,11 @@ dev = [
     "ruff (>=0.14.2,<0.15.0)"
 ]
 
+[tool.poetry]
+packages = [
+    { include = "valutatrade_hub" }
+] 
+
 [tool.poetry.scripts]
 project = "main:main"
 
