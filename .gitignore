@@ -1,0 +1,10 @@
+cat > .gitignore << 'GI'
+.venv/
+__pycache__/
+*.pyc
+dist/
+build/
+*.egg-info/
+*.log
+.DS_Store
+GI
