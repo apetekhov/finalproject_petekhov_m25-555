@@ -2,32 +2,23 @@
 name = "finalproject-petekhov-m25-555"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "Artem Petekhov",email = "apetekhov@gmail.com"}
-]
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [{ name = "Artem Petekhov", email = "apetekhov@gmail.com" }]
 dependencies = [
-    "prettytable (>=3.16.0,<4.0.0)"
+    "prettytable >=3.16.0,<4.0.0"
 ]
 
+[project.scripts]
+project = "valutatrade_hub.main:main"
 
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+# Группы зависимостей (Poetry-специфика — оставляем в [tool.poetry.*])
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.14.2"
 
-[dependency-groups]
-dev = [
-    "ruff (>=0.14.2,<0.15.0)"
-]
-
+# Указываем, какие пакеты включать в wheel
 [tool.poetry]
-packages = [
-    { include = "valutatrade_hub" }
-] 
-
-[tool.poetry.scripts]
-project = "main:main"
+packages = [{ include = "valutatrade_hub" }]
 
 [tool.ruff]
 line-length = 88
@@ -37,3 +28,7 @@ exclude = ["venv", ".venv", "dist", "__pycache__"]
 [tool.ruff.lint]
 select = ["E", "F", "I"]
 ignore = []
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
