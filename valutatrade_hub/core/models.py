@@ -81,3 +81,59 @@ class User:
             "salt": self._salt,
             "registration_date": self._registration_date.isoformat(),
         }
+
+class Wallet:
+    """
+    Класс кошелька для одной конкретной валюты.
+    Управляет балансом и обеспечивает проверки на корректность операций.
+    """
+
+    def __init__(self, currency_code: str, balance: float = 0.0) -> None:
+        if not isinstance(currency_code, str) or not currency_code:
+            raise ValueError("Код валюты должен быть непустой строкой.")
+
+        if not isinstance(balance, (int, float)) or balance < 0:
+            raise ValueError("Начальный баланс должен быть числом >= 0.")
+
+        self.currency_code = currency_code.upper()
+        self._balance = float(balance)
+
+    # --- Геттер для баланса ---
+    @property
+    def balance(self) -> float:
+        return self._balance
+
+    # --- Сеттер для баланса ---
+    @balance.setter
+    def balance(self, value: float) -> None:
+        if not isinstance(value, (int, float)):
+            raise TypeError("Баланс должен быть числом.")
+        if value < 0:
+            raise ValueError("Баланс не может быть отрицательным.")
+        self._balance = float(value)
+
+    # --- Метод пополнения ---
+    def deposit(self, amount: float) -> None:
+        if not isinstance(amount, (int, float)):
+            raise TypeError("Сумма пополнения должна быть числом.")
+        if amount <= 0:
+            raise ValueError("Сумма пополнения должна быть положительной.")
+        self._balance += float(amount)
+
+    # --- Метод снятия ---
+    def withdraw(self, amount: float) -> None:
+        if not isinstance(amount, (int, float)):
+            raise TypeError("Сумма снятия должна быть числом.")
+        if amount <= 0:
+            raise ValueError("Сумма снятия должна быть положительной.")
+        if amount > self._balance:
+            raise ValueError("Недостаточно средств для снятия.")
+        self._balance -= float(amount)
+
+    # --- Метод для вывода информации ---
+    def get_balance_info(self) -> dict:
+        """Возвращает информацию о валюте и текущем балансе."""
+        return {
+            "currency_code": self.currency_code,
+            "balance": round(self._balance, 2),
+        }
