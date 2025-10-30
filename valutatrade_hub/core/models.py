@@ -147,3 +147,73 @@ class Wallet:
             "currency_code": self.currency_code,
             "balance": round(self._balance, 2),
         }
+
+class Portfolio:
+    """
+    Класс, управляющий всеми кошельками одного пользователя.
+    Позволяет добавлять валюты и рассчитывать общую стоимость портфеля.
+    """
+
+    def __init__(self, user_id: int) -> None:
+        if not isinstance(user_id, int) or user_id <= 0:
+            raise ValueError("user_id должен быть положительным целым числом.")
+
+        self._user_id = user_id
+        self._wallets: dict[str, Wallet] = {}
+
+    # --- Геттер для user_id (только чтение) ---
+    @property
+    def user(self) -> int:
+        """Возвращает ID пользователя."""
+        return self._user_id
+
+    # --- Геттер для wallets (возвращает копию словаря) ---
+    @property
+    def wallets(self) -> dict[str, Wallet]:
+        """Возвращает копию словаря кошельков."""
+        return self._wallets.copy()
+
+    # --- Метод добавления новой валюты ---
+    def add_currency(self, currency_code: str) -> None:
+        """Добавляет новый кошелёк, если его ещё нет."""
+        code = currency_code.upper()
+
+        if code in self._wallets:
+            raise ValueError(f"Кошелёк для валюты {code} уже существует.")
+
+        self._wallets[code] = Wallet(code, 0.0)
+
+    # --- Метод получения кошелька ---
+    def get_wallet(self, currency_code: str) -> Wallet:
+        """Возвращает объект Wallet по коду валюты."""
+        code = currency_code.upper()
+        if code not in self._wallets:
+            raise KeyError(f"Кошелёк для валюты {code} не найден.")
+        return self._wallets[code]
+
+    # --- Метод подсчёта общей стоимости портфеля ---
+    def get_total_value(self, base_currency: str = "USD") -> float:
+        """
+        Рассчитывает суммарную стоимость всех валют в указанной базовой валюте.
+        Использует фиксированные тестовые курсы (заглушку).
+        """
+        base_currency = base_currency.upper()
+
+        # Пример фиктивных курсов (в будущем заменим на парсер API)
+        exchange_rates = {
+            "USD": 1.0,
+            "EUR": 1.1,
+            "BTC": 65000.0,
+            "ETH": 3200.0,
+        }
+
+        total_value = 0.0
+
+        for code, wallet in self._wallets.items():
+            rate = exchange_rates.get(code)
+            if rate is None:
+                raise ValueError(f"Нет курса для валюты {code}.")
+            # Переводим валюту в базовую (в доллары)
+            total_value += wallet.balance * rate
+
+        return round(total_value, 2)
