@@ -2,12 +2,19 @@ import hashlib
 import os
 from datetime import datetime
 
+
 class User:
     """
     Класс, описывающий пользователя системы ValutaTrade Hub.
     """
 
-    def __init__(self, user_id: int, username: str, password: str, registration_date: datetime | None = None):
+    def __init__(
+        self,
+        user_id: int,
+        username: str,
+        password: str,
+        registration_date: datetime | None = None,
+    ) -> None:
         # Приватные атрибуты
         self._user_id = user_id
         self._username = None
@@ -60,7 +67,10 @@ class User:
         """
         Проверяет введённый пароль.
         """
-        return self._hashed_password == hashlib.sha256((password + self._salt).encode()).hexdigest()
+        hashed_input = hashlib.sha256(
+            (password + self._salt).encode()
+        ).hexdigest()
+        return self._hashed_password == hashed_input
 
     def change_password(self, new_password: str):
         """
