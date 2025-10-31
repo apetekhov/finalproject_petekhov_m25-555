@@ -92,6 +92,49 @@ def register(args: list[str]) -> None:
         f"Войдите: login --username {username} --password ****"
     )
 
+
+def login(args: list[str]) -> None:
+    """
+    Авторизация пользователя.
+    Пример: login --username alice --password 1234
+    """
+    # --- Парсинг аргументов ---
+    try:
+        args_dict = {}
+        for i in range(0, len(args), 2):
+            key, value = args[i], args[i + 1]
+            args_dict[key] = value
+    except (IndexError, ValueError):
+        print(
+            "Ошибка: неправильный формат. "
+            "Пример: login --username alice --password 1234"
+        )
+        return
+
+    username = args_dict.get("--username")
+    password = args_dict.get("--password")
+
+    if not username or not password:
+        print("Ошибка: укажите и имя пользователя, и пароль.")
+        return
+
+    # --- Загрузка пользователей ---
+    users = load_json(USERS_FILE)
+    user = next((u for u in users if u["username"] == username), None)
+
+    if not user:
+        print(f"Пользователь '{username}' не найден.")
+        return
+
+    # --- Проверка пароля ---
+    hashed_input = hashlib.sha256((password + user["salt"]).encode()).hexdigest()
+    if hashed_input != user["hashed_password"]:
+        print("Неверный пароль.")
+        return
+
+    # --- Если всё ок ---
+    print(f"Вы вошли как '{username}'")
+
 def run_app() -> None:
     """Главный цикл CLI."""
     print("ValutaTrade CLI — введите команду (help для справки).")
@@ -114,6 +157,8 @@ def run_app() -> None:
                 )
             elif command == "register":
                 register(args)
+            elif command == "login":
+                login(args)
             else:
                 print(f"Неизвестная команда: {command}")
 
