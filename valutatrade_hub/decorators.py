@@ -1,7 +1,7 @@
-import functools
 import datetime
-from valutatrade_hub.logging_config import setup_logger
+import functools
 
+from valutatrade_hub.logging_config import setup_logger
 
 logger = setup_logger()
 

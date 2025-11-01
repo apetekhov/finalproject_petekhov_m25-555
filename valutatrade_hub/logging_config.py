@@ -1,6 +1,7 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
+
 from valutatrade_hub.infra.settings import SettingsLoader
 
 
