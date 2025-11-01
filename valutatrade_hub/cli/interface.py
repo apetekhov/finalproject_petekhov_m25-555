@@ -295,11 +295,17 @@ def run_app() -> None:
                         continue
 
                     rate, updated_at = get_rate(from_code, to_code)
-                    print(f"Курс {from_code}→{to_code}: {rate:.8f} (обновлено: {updated_at})")
+                    print(
+                        f"Курс {from_code}→{to_code}: {rate:.8f} "
+                        f"(обновлено: {updated_at})"
+                    )
 
                 except CurrencyNotFoundError as e:
                     print(str(e))
-                    print("Попробуйте команду help или проверьте список доступных валют.")
+                    print(
+                        "Попробуйте команду help "
+                        "или проверьте список доступных валют."
+                    )
                 except ApiRequestError as e:
                     print(f"Ошибка API: {e}. Повторите попытку позже.")
                 except Exception as e:

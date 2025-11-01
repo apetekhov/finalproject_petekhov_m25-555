@@ -78,7 +78,7 @@ def buy(user_id: int, currency_code: str, amount: float) -> None:
         raise ValueError("'amount' должен быть положительным числом")
 
     try:
-        currency = get_currency(currency_code)
+        get_currency(currency_code)
     except CurrencyNotFoundError as e:
         logger.error(str(e))
         raise
@@ -113,7 +113,8 @@ def buy(user_id: int, currency_code: str, amount: float) -> None:
     save_json(PORTFOLIOS_FILE, portfolios)
 
     logger.info(
-        f"Покупка {currency_code}: {amount} @ {rate} → {estimated_value:.2f} USD (user_id={user_id})"
+        f"Покупка {currency_code}: {amount} @ {rate} → {estimated_value:.2f} USD "
+        f"(user_id={user_id})"
     )
 
 
@@ -156,7 +157,8 @@ def sell(user_id: int, currency_code: str, amount: float) -> None:
     save_json(PORTFOLIOS_FILE, portfolios)
 
     logger.info(
-        f"Продажа {currency_code}: {amount} @ {rate} → {estimated_revenue:.2f} USD (user_id={user_id})"
+        f"Продажа {currency_code}: {amount} @ {rate} → {estimated_revenue:.2f} USD "
+        f"(user_id={user_id})"
     )
 
 
