@@ -294,6 +294,110 @@ def buy(args: list[str]) -> None:
         f"Оценочная стоимость покупки: {value_usd:,.2f} USD"
     )
 
+
+def sell(args: list[str]) -> None:
+    """
+    Продажа валюты.
+    Пример: sell --currency BTC --amount 0.01
+    """
+    global CURRENT_USER
+
+    # --- Проверка логина ---
+    if not CURRENT_USER:
+        print("Сначала выполните login.")
+        return
+
+    # --- Парсинг аргументов ---
+    try:
+        args_dict = {}
+        for i in range(0, len(args), 2):
+            key, value = args[i], args[i + 1]
+            args_dict[key] = value
+    except (IndexError, ValueError):
+        print("Ошибка: неправильный формат. Пример: sell --currency BTC --amount 0.01")
+        return
+
+    currency = args_dict.get("--currency")
+    amount_str = args_dict.get("--amount")
+
+    # --- Валидация аргументов ---
+    if not currency:
+        print("Ошибка: не указана валюта (--currency).")
+        return
+    currency = currency.upper()
+
+    try:
+        amount = float(amount_str)
+    except (TypeError, ValueError):
+        print("Ошибка: 'amount' должен быть числом.")
+        return
+
+    if amount <= 0:
+        print("'amount' должен быть положительным числом.")
+        return
+
+    # --- Загрузка портфеля ---
+    portfolios = load_json(PORTFOLIOS_FILE)
+    portfolio = next((p for p in portfolios if p["user_id"] == CURRENT_USER["user_id"]), None)
+
+    if not portfolio:
+        print("Ошибка: портфель пользователя не найден.")
+        return
+
+    wallets = portfolio.get("wallets", {})
+
+    # --- Проверка наличия кошелька ---
+    if currency not in wallets:
+        print(
+            f"У вас нет кошелька '{currency}'. "
+            "Добавьте валюту: она создаётся автоматически при первой покупке."
+        )
+        return
+
+    old_balance = wallets[currency]["balance"]
+    if old_balance < amount:
+        print(
+            f"Недостаточно средств: доступно {old_balance:.4f} {currency}, "
+            f"требуется {amount:.4f} {currency}."
+        )
+        return
+
+    # --- Заглушка курса ---
+    exchange_rates = {
+        "USD": 1.0,
+        "EUR": 1.07,
+        "BTC": 59800.00,
+        "ETH": 3720.00,
+        "RUB": 0.01016,
+    }
+
+    rate = exchange_rates.get(currency)
+    if rate is None:
+        print(f"Не удалось получить курс для {currency}→USD.")
+        return
+
+    value_usd = amount * rate
+
+    # --- Обновление балансов ---
+    wallets[currency]["balance"] = old_balance - amount
+
+    # --- Если есть кошелёк USD — добавляем выручку ---
+    if "USD" not in wallets:
+        wallets["USD"] = {"currency_code": "USD", "balance": 0.0}
+    wallets["USD"]["balance"] += value_usd
+
+    # --- Сохранение ---
+    portfolio["wallets"] = wallets
+    save_json(PORTFOLIOS_FILE, portfolios)
+
+    # --- Вывод ---
+    print(
+        f"Продажа выполнена: {amount:.4f} {currency} по курсу {rate:,.2f} USD/{currency}\n"
+        f"Изменения в портфеле:\n"
+        f"- {currency}: было {old_balance:.4f} → стало {wallets[currency]['balance']:.4f}\n"
+        f"Оценочная выручка: {value_usd:,.2f} USD"
+    )
+
 def run_app() -> None:
     """Главный цикл CLI."""
     print("ValutaTrade CLI — введите команду (help для справки).")
@@ -322,6 +426,8 @@ def run_app() -> None:
                 show_portfolio(args)
             elif command == "buy":
                 buy(args)
+            elif command == "sell":
+                sell(args)
             else:
                 print(f"Неизвестная команда: {command}")
 
