@@ -5,12 +5,13 @@ import random
 import shlex
 import string
 from datetime import datetime
-from valutatrade_hub.core.usecases import buy, sell, get_rate
+
 from valutatrade_hub.core.exceptions import (
+    ApiRequestError,
     CurrencyNotFoundError,
     InsufficientFundsError,
-    ApiRequestError,
 )
+from valutatrade_hub.core.usecases import buy, get_rate, sell
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
