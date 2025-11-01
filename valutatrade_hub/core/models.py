@@ -2,6 +2,8 @@ import hashlib
 import os
 from datetime import datetime
 
+from valutatrade_hub.core.exceptions import InsufficientFundsError
+
 
 class User:
     """
@@ -132,12 +134,13 @@ class Wallet:
 
     # --- Метод снятия ---
     def withdraw(self, amount: float) -> None:
+        """Снятие средств с кошелька."""
         if not isinstance(amount, (int, float)):
             raise TypeError("Сумма снятия должна быть числом.")
         if amount <= 0:
             raise ValueError("Сумма снятия должна быть положительной.")
         if amount > self._balance:
-            raise ValueError("Недостаточно средств для снятия.")
+            raise InsufficientFundsError(self._balance, amount, self.currency_code)
         self._balance -= float(amount)
 
     # --- Метод для вывода информации ---
