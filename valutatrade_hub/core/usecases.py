@@ -100,13 +100,14 @@ def buy(user_id: int, currency_code: str, amount: float) -> None:
     wallets[currency_code]["balance"] = new_balance
 
     # Загружаем курсы и рассчитываем стоимость
-    rates = load_json(RATES_FILE)
-    key = f"{currency_code}_USD"
-    if key not in rates:
-        raise ApiRequestError(f"Не удалось получить курс для {currency_code}→USD")
-
-    rate = rates[key]["rate"]
-    estimated_value = amount * rate
+    rate = None
+    estimated_value = None
+    try:
+        rate, _updated = get_rate(currency_code, "USD")
+        estimated_value = amount * rate
+    except ApiRequestError:
+        # курса нет — покупку не блокируем, просто без оценки
+        pass
 
     # Сохраняем обновлённый список портфелей
     save_json(PORTFOLIOS_FILE, portfolios)
@@ -143,13 +144,14 @@ def sell(user_id: int, currency_code: str, amount: float) -> None:
 
     wallets[currency_code]["balance"] -= amount
 
-    rates = load_json(RATES_FILE)
-    key = f"{currency_code}_USD"
-    if key not in rates:
-        raise ApiRequestError(f"Не удалось получить курс для {currency_code}→USD")
-
-    rate = rates[key]["rate"]
-    estimated_revenue = amount * rate
+    rate = None
+    estimated_revenue = None
+    try:
+        rate, _updated = get_rate(currency_code, "USD")
+        estimated_revenue = amount * rate
+    except ApiRequestError:
+        # курса нет — продажу не блокируем, просто без оценки
+        pass
 
     save_json(PORTFOLIOS_FILE, portfolios)
 
@@ -196,9 +198,3 @@ def get_rate(from_code: str, to_code: str) -> tuple[float, str]:
 
     # актуально — отдаём как есть
     return rate_info["rate"], rate_info["updated_at"]
-
-if __name__ == "__main__":
-    buy(1, "BTC", 0.05)
-    sell(1, "BTC", 0.02)
-    rate, time = get_rate("BTC", "USD")
-    print("Курс BTC→USD:", rate, time)
