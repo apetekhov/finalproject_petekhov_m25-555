@@ -5,6 +5,12 @@ import random
 import shlex
 import string
 from datetime import datetime
+from valutatrade_hub.core.usecases import buy, sell, get_rate
+from valutatrade_hub.core.exceptions import (
+    CurrencyNotFoundError,
+    InsufficientFundsError,
+    ApiRequestError,
+)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -207,295 +213,6 @@ def show_portfolio(args: list[str]) -> None:
     print(f"ИТОГО: {total_value:,.2f} {base_currency}")
 
 
-def buy(args: list[str]) -> None:
-    """
-    Покупка валюты.
-    Пример: buy --currency BTC --amount 0.05
-    """
-    global CURRENT_USER
-
-    # --- Проверка логина ---
-    if not CURRENT_USER:
-        print("Сначала выполните login.")
-        return
-
-    # --- Парсинг аргументов ---
-    try:
-        args_dict = {}
-        for i in range(0, len(args), 2):
-            key, value = args[i], args[i + 1]
-            args_dict[key] = value
-    except (IndexError, ValueError):
-        print("Ошибка: неправильный формат. Пример: buy --currency BTC --amount 0.05")
-        return
-
-    currency = args_dict.get("--currency")
-    amount_str = args_dict.get("--amount")
-
-    # --- Валидация аргументов ---
-    if not currency:
-        print("Ошибка: не указана валюта (--currency).")
-        return
-    currency = currency.upper()
-
-    try:
-        amount = float(amount_str)
-    except (TypeError, ValueError):
-        print("Ошибка: 'amount' должен быть числом.")
-        return
-
-    if amount <= 0:
-        print("'amount' должен быть положительным числом.")
-        return
-
-    # --- Загрузка портфеля ---
-    portfolios = load_json(PORTFOLIOS_FILE)
-    portfolio = next(
-        (p for p in portfolios if p["user_id"] == CURRENT_USER["user_id"]),
-        None,
-    )
-
-    if not portfolio:
-        print("Ошибка: портфель пользователя не найден.")
-        return
-
-    wallets = portfolio.get("wallets", {})
-
-    # --- Если кошелька ещё нет, создаём ---
-    if currency not in wallets:
-        wallets[currency] = {"currency_code": currency, "balance": 0.0}
-
-    old_balance = wallets[currency]["balance"]
-    new_balance = old_balance + amount
-    wallets[currency]["balance"] = new_balance
-
-    # --- Заглушка курса ---
-    exchange_rates = {
-        "USD": 1.0,
-        "EUR": 1.07,
-        "BTC": 59300.00,
-        "ETH": 3720.00,
-        "RUB": 0.01016,
-    }
-
-    rate = exchange_rates.get(currency)
-    if rate is None:
-        print(f"Не удалось получить курс для {currency}→USD.")
-        return
-
-    value_usd = amount * rate
-
-    # --- Сохранение портфеля ---
-    portfolio["wallets"] = wallets
-    save_json(PORTFOLIOS_FILE, portfolios)
-
-    # --- Вывод ---
-    print(
-        f"Покупка выполнена: {amount:.4f} {currency} "
-        f"по курсу {rate:,.2f} USD/{currency}\n"
-        f"Изменения в портфеле:\n"
-        f"- {currency}: было {old_balance:.4f} → стало {new_balance:.4f}\n"
-        f"Оценочная стоимость покупки: {value_usd:,.2f} USD"
-    )
-
-
-def sell(args: list[str]) -> None:
-    """
-    Продажа валюты.
-    Пример: sell --currency BTC --amount 0.01
-    """
-    global CURRENT_USER
-
-    # --- Проверка логина ---
-    if not CURRENT_USER:
-        print("Сначала выполните login.")
-        return
-
-    # --- Парсинг аргументов ---
-    try:
-        args_dict = {}
-        for i in range(0, len(args), 2):
-            key, value = args[i], args[i + 1]
-            args_dict[key] = value
-    except (IndexError, ValueError):
-        print("Ошибка: неправильный формат. Пример: sell --currency BTC --amount 0.01")
-        return
-
-    currency = args_dict.get("--currency")
-    amount_str = args_dict.get("--amount")
-
-    # --- Валидация аргументов ---
-    if not currency:
-        print("Ошибка: не указана валюта (--currency).")
-        return
-    currency = currency.upper()
-
-    try:
-        amount = float(amount_str)
-    except (TypeError, ValueError):
-        print("Ошибка: 'amount' должен быть числом.")
-        return
-
-    if amount <= 0:
-        print("'amount' должен быть положительным числом.")
-        return
-
-    # --- Загрузка портфеля ---
-    portfolios = load_json(PORTFOLIOS_FILE)
-    portfolio = next(
-        (p for p in portfolios if p["user_id"] == CURRENT_USER["user_id"]),
-        None,
-    )
-
-    if not portfolio:
-        print("Ошибка: портфель пользователя не найден.")
-        return
-
-    wallets = portfolio.get("wallets", {})
-
-    # --- Проверка наличия кошелька ---
-    if currency not in wallets:
-        print(
-            f"У вас нет кошелька '{currency}'. "
-            "Добавьте валюту: она создаётся автоматически при первой покупке."
-        )
-        return
-
-    old_balance = wallets[currency]["balance"]
-    if old_balance < amount:
-        print(
-            f"Недостаточно средств: доступно {old_balance:.4f} {currency}, "
-            f"требуется {amount:.4f} {currency}."
-        )
-        return
-
-    # --- Заглушка курса ---
-    exchange_rates = {
-        "USD": 1.0,
-        "EUR": 1.07,
-        "BTC": 59800.00,
-        "ETH": 3720.00,
-        "RUB": 0.01016,
-    }
-
-    rate = exchange_rates.get(currency)
-    if rate is None:
-        print(f"Не удалось получить курс для {currency}→USD.")
-        return
-
-    value_usd = amount * rate
-
-    # --- Обновление балансов ---
-    wallets[currency]["balance"] = old_balance - amount
-
-    # --- Если есть кошелёк USD — добавляем выручку ---
-    if "USD" not in wallets:
-        wallets["USD"] = {"currency_code": "USD", "balance": 0.0}
-    wallets["USD"]["balance"] += value_usd
-
-    # --- Сохранение ---
-    portfolio["wallets"] = wallets
-    save_json(PORTFOLIOS_FILE, portfolios)
-
-    # --- Вывод ---
-    print(
-        f"Продажа выполнена: {amount:.4f} {currency} "
-        f"по курсу {rate:,.2f} USD/{currency}\n"
-        f"Изменения в портфеле:\n"
-        f"- {currency}: было {old_balance:.4f} "
-        f"→ стало {wallets[currency]['balance']:.4f}\n"
-        f"Оценочная выручка: {value_usd:,.2f} USD"
-    )
-
-
-def get_rate(args: list[str]) -> None:
-    """
-    Получить текущий курс одной валюты к другой.
-    Пример: get-rate --from USD --to BTC
-    """
-    # --- Парсинг аргументов ---
-    try:
-        args_dict = {}
-        for i in range(0, len(args), 2):
-            key, value = args[i], args[i + 1]
-            args_dict[key] = value
-    except (IndexError, ValueError):
-        print("Ошибка: неправильный формат. Пример: get-rate --from USD --to BTC")
-        return
-
-    from_code = args_dict.get("--from")
-    to_code = args_dict.get("--to")
-
-    # --- Проверка корректности ---
-    if not from_code or not to_code:
-        print("Ошибка: укажите обе валюты (--from и --to).")
-        return
-
-    from_code = from_code.upper()
-    to_code = to_code.upper()
-
-    if from_code == to_code:
-        print("Ошибка: валюты совпадают.")
-        return
-
-    # --- Загрузка кеша курсов ---
-    rates_path = os.path.join(DATA_DIR, "rates.json")
-    rates = load_json(rates_path)
-
-    pair_key = f"{from_code}_{to_code}"
-
-    rate_info = rates.get(pair_key)
-    now = datetime.now()
-
-    # --- Проверка "свежести" курса ---
-    def is_fresh(rate_data: dict) -> bool:
-        try:
-            updated_at = datetime.fromisoformat(rate_data["updated_at"])
-            return (now - updated_at).total_seconds() < 300  # 5 минут
-        except Exception:
-            return False
-
-    if rate_info and is_fresh(rate_info):
-        rate = rate_info["rate"]
-        updated_at = rate_info["updated_at"]
-        reverse_rate = 1 / rate if rate != 0 else None
-        print(
-            f"Курс {from_code}→{to_code}: {rate:.8f} "
-            f"(обновлено: {updated_at})"
-        )
-        if reverse_rate:
-            print(f"Обратный курс {to_code}→{from_code}: {reverse_rate:,.2f}")
-        return
-
-    # --- Заглушка, если курс не найден или устарел ---
-    print(f"Курс {from_code}→{to_code} устарел или отсутствует. Обновляем...")
-
-    # Фиктивные данные-заглушки (позже заменю на Parser Service)
-    fake_rates = {
-        "USD_BTC": {"rate": 1 / 59337.21, "updated_at": now.isoformat()},
-        "BTC_USD": {"rate": 59337.21, "updated_at": now.isoformat()},
-        "EUR_USD": {"rate": 1.0786, "updated_at": now.isoformat()},
-        "USD_EUR": {"rate": 1 / 1.0786, "updated_at": now.isoformat()},
-        "RUB_USD": {"rate": 0.01016, "updated_at": now.isoformat()},
-        "USD_RUB": {"rate": 98.42, "updated_at": now.isoformat()},
-        "ETH_USD": {"rate": 3720.00, "updated_at": now.isoformat()},
-        "USD_ETH": {"rate": 1 / 3720.00, "updated_at": now.isoformat()},
-    }
-
-    if pair_key in fake_rates:
-        rates[pair_key] = fake_rates[pair_key]
-        save_json(rates_path, rates)
-        print(
-            f"Курс {from_code}→{to_code}: "
-            f"{fake_rates[pair_key]['rate']:.8f} (обновлено: сейчас)"
-        )
-        print(
-            f"Обратный курс {to_code}→{from_code}: "
-            f"{1 / fake_rates[pair_key]['rate']:.2f}"
-        )
-    else:
-        print(f"Курс {from_code}→{to_code} недоступен. Повторите попытку позже.")
-
 def run_app() -> None:
     """Главный цикл CLI."""
     print("ValutaTrade CLI — введите команду (help для справки).")
@@ -523,11 +240,69 @@ def run_app() -> None:
             elif command == "show-portfolio":
                 show_portfolio(args)
             elif command == "buy":
-                buy(args)
+                try:
+                    args_dict = {args[i]: args[i + 1] for i in range(0, len(args), 2)}
+                    currency = args_dict.get("--currency")
+                    amount = float(args_dict.get("--amount", 0))
+
+                    if not CURRENT_USER:
+                        print("Сначала выполните login.")
+                        continue
+
+                    buy(CURRENT_USER["user_id"], currency, amount)
+                    print(f"Покупка {amount:.4f} {currency} успешно выполнена.")
+
+                except ValueError as e:
+                    print(f"Ошибка ввода: {e}")
+                except CurrencyNotFoundError as e:
+                    print(str(e))
+                except ApiRequestError as e:
+                    print(f"Не удалось получить курс: {e}")
+                except Exception as e:
+                    print(f"Неожиданная ошибка: {e}")
             elif command == "sell":
-                sell(args)
+                try:
+                    args_dict = {args[i]: args[i + 1] for i in range(0, len(args), 2)}
+                    currency = args_dict.get("--currency")
+                    amount = float(args_dict.get("--amount", 0))
+
+                    if not CURRENT_USER:
+                        print("Сначала выполните login.")
+                        continue
+
+                    sell(CURRENT_USER["user_id"], currency, amount)
+                    print(f"Продажа {amount:.4f} {currency} успешно выполнена.")
+
+                except InsufficientFundsError as e:
+                    print(str(e))
+                except CurrencyNotFoundError as e:
+                    print(str(e))
+                except ApiRequestError as e:
+                    print(f"Ошибка получения курса: {e}")
+                except ValueError as e:
+                    print(f"Ошибка ввода: {e}")
+                except Exception as e:
+                    print(f"Неожиданная ошибка: {e}")
             elif command == "get-rate":
-                get_rate(args)
+                try:
+                    args_dict = {args[i]: args[i + 1] for i in range(0, len(args), 2)}
+                    from_code = args_dict.get("--from")
+                    to_code = args_dict.get("--to")
+
+                    if not from_code or not to_code:
+                        print("Ошибка: укажите валюты через --from и --to.")
+                        continue
+
+                    rate, updated_at = get_rate(from_code, to_code)
+                    print(f"Курс {from_code}→{to_code}: {rate:.8f} (обновлено: {updated_at})")
+
+                except CurrencyNotFoundError as e:
+                    print(str(e))
+                    print("Попробуйте команду help или проверьте список доступных валют.")
+                except ApiRequestError as e:
+                    print(f"Ошибка API: {e}. Повторите попытку позже.")
+                except Exception as e:
+                    print(f"Неожиданная ошибка: {e}")
             else:
                 print(f"Неизвестная команда: {command}")
 
