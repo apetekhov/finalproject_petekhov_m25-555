@@ -10,6 +10,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 USERS_FILE = os.path.join(DATA_DIR, "users.json")
 PORTFOLIOS_FILE = os.path.join(DATA_DIR, "portfolios.json")
+CURRENT_USER: dict | None = None
 
 
 def load_json(file_path: str) -> list | dict:
@@ -135,6 +136,76 @@ def login(args: list[str]) -> None:
     # --- Если всё ок ---
     print(f"Вы вошли как '{username}'")
 
+    global CURRENT_USER
+    CURRENT_USER = user
+
+
+def show_portfolio(args: list[str]) -> None:
+    """
+    Показывает портфель пользователя.
+    Пример: show-portfolio --base USD
+    """
+    global CURRENT_USER
+
+    if not CURRENT_USER:
+        print("Сначала выполните login.")
+        return
+
+    # --- Парсинг аргументов ---
+    base_currency = "USD"
+    if "--base" in args:
+        try:
+            base_currency = args[args.index("--base") + 1].upper()
+        except IndexError:
+            print("Ошибка: не указана базовая валюта после --base.")
+            return
+
+    # --- Проверка известной валюты ---
+    known_currencies = ["USD", "EUR", "BTC", "ETH", "RUB"]
+    if base_currency not in known_currencies:
+        print(f"Неизвестная базовая валюта '{base_currency}'.")
+        return
+
+    # --- Загрузка портфелей и курсов ---
+    portfolios = load_json(PORTFOLIOS_FILE)
+    # rates = load_json(os.path.join(DATA_DIR, "rates.json")) #пока не используется
+
+    portfolio = next(
+        (p for p in portfolios if p["user_id"] == CURRENT_USER["user_id"]),
+        None,
+    )
+
+    if not portfolio or not portfolio["wallets"]:
+        print("У вас пока нет кошельков.")
+        return
+
+    # --- Заглушка для курсов ---
+    exchange_rates = {
+        "USD": 1.0,
+        "EUR": 1.07,
+        "BTC": 59337.21,
+        "ETH": 3720.00,
+        "RUB": 0.01016,
+    }
+
+    total_value = 0.0
+    print(
+        f"Портфель пользователя '{CURRENT_USER['username']}' "
+        f"(база: {base_currency}):"
+    )
+
+    for code, data in portfolio["wallets"].items():
+        balance = data.get("balance", 0.0)
+        rate = exchange_rates.get(code, 0)
+        base_rate = exchange_rates.get(base_currency, 1)
+        value_in_base = (balance * rate) / base_rate if base_rate != 0 else 0
+
+        print(f"- {code}: {balance:.4f}  →  {value_in_base:.2f} {base_currency}")
+        total_value += value_in_base
+
+    print("-" * 40)
+    print(f"ИТОГО: {total_value:,.2f} {base_currency}")
+
 def run_app() -> None:
     """Главный цикл CLI."""
     print("ValutaTrade CLI — введите команду (help для справки).")
@@ -159,9 +230,14 @@ def run_app() -> None:
                 register(args)
             elif command == "login":
                 login(args)
+            elif command == "show-portfolio":
+                show_portfolio(args)
             else:
                 print(f"Неизвестная команда: {command}")
 
         except (KeyboardInterrupt, EOFError):
             print("\nВыход из программы.")
             break
+
+if __name__ == "__main__":
+    run_app()
