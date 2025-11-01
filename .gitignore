@@ -7,3 +7,5 @@ build/
 *.log
 .DS_Store
 logs/
+data/
+*.json
