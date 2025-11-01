@@ -407,6 +407,95 @@ def sell(args: list[str]) -> None:
         f"Оценочная выручка: {value_usd:,.2f} USD"
     )
 
+
+def get_rate(args: list[str]) -> None:
+    """
+    Получить текущий курс одной валюты к другой.
+    Пример: get-rate --from USD --to BTC
+    """
+    # --- Парсинг аргументов ---
+    try:
+        args_dict = {}
+        for i in range(0, len(args), 2):
+            key, value = args[i], args[i + 1]
+            args_dict[key] = value
+    except (IndexError, ValueError):
+        print("Ошибка: неправильный формат. Пример: get-rate --from USD --to BTC")
+        return
+
+    from_code = args_dict.get("--from")
+    to_code = args_dict.get("--to")
+
+    # --- Проверка корректности ---
+    if not from_code or not to_code:
+        print("Ошибка: укажите обе валюты (--from и --to).")
+        return
+
+    from_code = from_code.upper()
+    to_code = to_code.upper()
+
+    if from_code == to_code:
+        print("Ошибка: валюты совпадают.")
+        return
+
+    # --- Загрузка кеша курсов ---
+    rates_path = os.path.join(DATA_DIR, "rates.json")
+    rates = load_json(rates_path)
+
+    pair_key = f"{from_code}_{to_code}"
+
+    rate_info = rates.get(pair_key)
+    now = datetime.now()
+
+    # --- Проверка "свежести" курса ---
+    def is_fresh(rate_data: dict) -> bool:
+        try:
+            updated_at = datetime.fromisoformat(rate_data["updated_at"])
+            return (now - updated_at).total_seconds() < 300  # 5 минут
+        except Exception:
+            return False
+
+    if rate_info and is_fresh(rate_info):
+        rate = rate_info["rate"]
+        updated_at = rate_info["updated_at"]
+        reverse_rate = 1 / rate if rate != 0 else None
+        print(
+            f"Курс {from_code}→{to_code}: {rate:.8f} "
+            f"(обновлено: {updated_at})"
+        )
+        if reverse_rate:
+            print(f"Обратный курс {to_code}→{from_code}: {reverse_rate:,.2f}")
+        return
+
+    # --- Заглушка, если курс не найден или устарел ---
+    print(f"Курс {from_code}→{to_code} устарел или отсутствует. Обновляем...")
+
+    # Фиктивные данные-заглушки (позже заменю на Parser Service)
+    fake_rates = {
+        "USD_BTC": {"rate": 1 / 59337.21, "updated_at": now.isoformat()},
+        "BTC_USD": {"rate": 59337.21, "updated_at": now.isoformat()},
+        "EUR_USD": {"rate": 1.0786, "updated_at": now.isoformat()},
+        "USD_EUR": {"rate": 1 / 1.0786, "updated_at": now.isoformat()},
+        "RUB_USD": {"rate": 0.01016, "updated_at": now.isoformat()},
+        "USD_RUB": {"rate": 98.42, "updated_at": now.isoformat()},
+        "ETH_USD": {"rate": 3720.00, "updated_at": now.isoformat()},
+        "USD_ETH": {"rate": 1 / 3720.00, "updated_at": now.isoformat()},
+    }
+
+    if pair_key in fake_rates:
+        rates[pair_key] = fake_rates[pair_key]
+        save_json(rates_path, rates)
+        print(
+            f"Курс {from_code}→{to_code}: "
+            f"{fake_rates[pair_key]['rate']:.8f} (обновлено: сейчас)"
+        )
+        print(
+            f"Обратный курс {to_code}→{from_code}: "
+            f"{1 / fake_rates[pair_key]['rate']:.2f}"
+        )
+    else:
+        print(f"Курс {from_code}→{to_code} недоступен. Повторите попытку позже.")
+
 def run_app() -> None:
     """Главный цикл CLI."""
     print("ValutaTrade CLI — введите команду (help для справки).")
@@ -437,6 +526,8 @@ def run_app() -> None:
                 buy(args)
             elif command == "sell":
                 sell(args)
+            elif command == "get-rate":
+                get_rate(args)
             else:
                 print(f"Неизвестная команда: {command}")
 
