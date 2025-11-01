@@ -250,7 +250,10 @@ def buy(args: list[str]) -> None:
 
     # --- Загрузка портфеля ---
     portfolios = load_json(PORTFOLIOS_FILE)
-    portfolio = next((p for p in portfolios if p["user_id"] == CURRENT_USER["user_id"]), None)
+    portfolio = next(
+        (p for p in portfolios if p["user_id"] == CURRENT_USER["user_id"]),
+        None,
+    )
 
     if not portfolio:
         print("Ошибка: портфель пользователя не найден.")
@@ -288,7 +291,8 @@ def buy(args: list[str]) -> None:
 
     # --- Вывод ---
     print(
-        f"Покупка выполнена: {amount:.4f} {currency} по курсу {rate:,.2f} USD/{currency}\n"
+        f"Покупка выполнена: {amount:.4f} {currency} "
+        f"по курсу {rate:,.2f} USD/{currency}\n"
         f"Изменения в портфеле:\n"
         f"- {currency}: было {old_balance:.4f} → стало {new_balance:.4f}\n"
         f"Оценочная стоимость покупки: {value_usd:,.2f} USD"
@@ -338,7 +342,10 @@ def sell(args: list[str]) -> None:
 
     # --- Загрузка портфеля ---
     portfolios = load_json(PORTFOLIOS_FILE)
-    portfolio = next((p for p in portfolios if p["user_id"] == CURRENT_USER["user_id"]), None)
+    portfolio = next(
+        (p for p in portfolios if p["user_id"] == CURRENT_USER["user_id"]),
+        None,
+    )
 
     if not portfolio:
         print("Ошибка: портфель пользователя не найден.")
@@ -392,9 +399,11 @@ def sell(args: list[str]) -> None:
 
     # --- Вывод ---
     print(
-        f"Продажа выполнена: {amount:.4f} {currency} по курсу {rate:,.2f} USD/{currency}\n"
+        f"Продажа выполнена: {amount:.4f} {currency} "
+        f"по курсу {rate:,.2f} USD/{currency}\n"
         f"Изменения в портфеле:\n"
-        f"- {currency}: было {old_balance:.4f} → стало {wallets[currency]['balance']:.4f}\n"
+        f"- {currency}: было {old_balance:.4f} "
+        f"→ стало {wallets[currency]['balance']:.4f}\n"
         f"Оценочная выручка: {value_usd:,.2f} USD"
     )
 
