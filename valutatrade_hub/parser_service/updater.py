@@ -1,11 +1,13 @@
+from valutatrade_hub.core.exceptions import ApiRequestError
 from valutatrade_hub.logging_config import setup_logger
 from valutatrade_hub.parser_service.api_clients import (
     CoinGeckoClient,
     ExchangeRateApiClient,
 )
 from valutatrade_hub.parser_service.config import ParserConfig
-from valutatrade_hub.parser_service.storage import RatesStorage  # заменил импорт функций на класс
-from valutatrade_hub.core.exceptions import ApiRequestError
+from valutatrade_hub.parser_service.storage import (
+    RatesStorage,  # заменил импорт функций на класс
+)
 
 logger = setup_logger()
 config = ParserConfig()
@@ -14,7 +16,8 @@ config = ParserConfig()
 class RatesUpdater:
     """Координация обновления курсов валют."""
 
-    def __init__(self, clients=None, storage=None):  # добавил аргументы для универсальности
+    def __init__(self, clients=None, storage=None):
+        """Инициализация обновления с возможностью передачи клиентов и хранилища."""
         self.clients = clients or [
             CoinGeckoClient(config),
             ExchangeRateApiClient(config),

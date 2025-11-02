@@ -1,6 +1,8 @@
-import requests
-from datetime import datetime, timezone
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
+
+import requests
+
 from valutatrade_hub.core.exceptions import ApiRequestError
 from valutatrade_hub.parser_service.config import ParserConfig
 
@@ -51,7 +53,11 @@ class ExchangeRateApiClient(BaseApiClient):
         if not self.config.EXCHANGERATE_API_KEY:
             raise ApiRequestError("Не найден ключ EXCHANGERATE_API_KEY")
 
-        url = f"{self.config.EXCHANGERATE_API_URL}/{self.config.EXCHANGERATE_API_KEY}/latest/{self.config.BASE_CURRENCY}"
+        url = (
+            f"{self.config.EXCHANGERATE_API_URL}/"
+            f"{self.config.EXCHANGERATE_API_KEY}/latest/"
+            f"{self.config.BASE_CURRENCY}"
+        )
         try:
             response = requests.get(url, timeout=self.config.REQUEST_TIMEOUT)
             response.raise_for_status()

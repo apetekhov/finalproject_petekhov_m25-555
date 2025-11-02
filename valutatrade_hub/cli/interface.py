@@ -318,8 +318,8 @@ def run_app() -> None:
                 except Exception as e:
                     print(f"Ошибка обновления: {e}")
             elif command == "show-rates":
-                from valutatrade_hub.parser_service.storage import read_json
                 from valutatrade_hub.parser_service.config import ParserConfig
+                from valutatrade_hub.parser_service.storage import read_json
 
                 config = ParserConfig()
                 data = read_json(config.RATES_FILE_PATH)

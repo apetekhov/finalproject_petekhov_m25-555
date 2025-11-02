@@ -1,11 +1,12 @@
 import time
+
 from valutatrade_hub.parser_service.api_clients import (
     CoinGeckoClient,
     ExchangeRateApiClient,
 )
 from valutatrade_hub.parser_service.config import ParserConfig
-from valutatrade_hub.parser_service.updater import RatesUpdater
 from valutatrade_hub.parser_service.storage import RatesStorage
+from valutatrade_hub.parser_service.updater import RatesUpdater
 
 
 def run_scheduler(interval_minutes: float = 0.1, one_time: bool = True) -> None:
@@ -16,7 +17,8 @@ def run_scheduler(interval_minutes: float = 0.1, one_time: bool = True) -> None:
         interval_minutes (float): Интервал между обновлениями (в минутах).
         one_time (bool): Если True — выполняется только один цикл (для автотестов).
     """
-    print(f"Scheduler запущен. Интервал: {interval_minutes} мин. Режим: {'одноразовый' if one_time else 'цикличный'}")
+    mode = "одноразовый" if one_time else "цикличный"
+    print(f"Scheduler запущен. Интервал: {interval_minutes} мин. Режим: {mode}")
 
     config = ParserConfig()
     updater = RatesUpdater(
