@@ -310,6 +310,27 @@ def run_app() -> None:
                     print(f"Ошибка API: {e}. Повторите попытку позже.")
                 except Exception as e:
                     print(f"Неожиданная ошибка: {e}")
+            elif command == "update-rates":
+                from valutatrade_hub.parser_service.updater import RatesUpdater
+                try:
+                    updater = RatesUpdater()
+                    updater.run_update()
+                except Exception as e:
+                    print(f"Ошибка обновления: {e}")
+            elif command == "show-rates":
+                from valutatrade_hub.parser_service.storage import read_json
+                from valutatrade_hub.parser_service.config import ParserConfig
+
+                config = ParserConfig()
+                data = read_json(config.RATES_FILE_PATH)
+
+                if not data or "pairs" not in data or not data["pairs"]:
+                    print("Локальный кеш курсов пуст. Выполните 'update-rates'.")
+                    continue
+
+                print(f"Rates from cache (updated at {data['last_refresh']}):")
+                for pair, info in data["pairs"].items():
+                    print(f"- {pair}: {info['rate']:.5f} ({info['source']})")
             else:
                 print(f"Неизвестная команда: {command}")
 
