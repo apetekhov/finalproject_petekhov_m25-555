@@ -4,10 +4,7 @@ from valutatrade_hub.parser_service.api_clients import (
     ExchangeRateApiClient,
 )
 from valutatrade_hub.parser_service.config import ParserConfig
-from valutatrade_hub.parser_service.storage import (
-    append_exchange_history,
-    update_rates_cache,
-)
+from valutatrade_hub.parser_service.storage import RatesStorage  # заменил импорт функций на класс
 from valutatrade_hub.core.exceptions import ApiRequestError
 
 logger = setup_logger()
@@ -17,11 +14,12 @@ config = ParserConfig()
 class RatesUpdater:
     """Координация обновления курсов валют."""
 
-    def __init__(self):
-        self.clients = [
+    def __init__(self, clients=None, storage=None):  # добавил аргументы для универсальности
+        self.clients = clients or [
             CoinGeckoClient(config),
             ExchangeRateApiClient(config),
         ]
+        self.storage = storage or RatesStorage()  # создал объект хранилища
 
     def run_update(self):
         logger.info("Starting rates update...")
@@ -45,8 +43,9 @@ class RatesUpdater:
                 errors += 1
 
         if all_rates:
-            append_exchange_history(all_rates)
-            update_rates_cache(all_rates)
+            # теперь вызываем методы экземпляра storage
+            self.storage.append_exchange_history(all_rates)
+            self.storage.update_rates_cache(all_rates)
             logger.info(f"Updated {total} rates successfully.")
         else:
             logger.warning("No rates fetched.")
