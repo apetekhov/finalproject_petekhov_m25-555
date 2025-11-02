@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Final
 
 
@@ -16,11 +16,11 @@ class ParserConfig:
     BASE_CURRENCY: Final[str] = "USD"
     FIAT_CURRENCIES: tuple[str, ...] = ("EUR", "GBP", "RUB")
     CRYPTO_CURRENCIES: tuple[str, ...] = ("BTC", "ETH", "SOL")
-    CRYPTO_ID_MAP: dict[str, str] = {
+    CRYPTO_ID_MAP: dict[str, str] = field(default_factory=lambda: {
         "BTC": "bitcoin",
         "ETH": "ethereum",
         "SOL": "solana",
-    }
+    })
 
     # --- Пути ---
     RATES_FILE_PATH: Final[str] = "data/rates.json"
