@@ -2,7 +2,6 @@ import json
 import os
 import tempfile
 from datetime import datetime, timezone
-
 from valutatrade_hub.parser_service.config import ParserConfig
 
 
@@ -12,6 +11,22 @@ class RatesStorage:
     def __init__(self, config: ParserConfig | None = None):
         self.config = config or ParserConfig()
 
+    # ------------------------------
+    # Универсальное чтение JSON
+    # ------------------------------
+    def read_json(self, path: str):
+        """Публичный метод для безопасного чтения JSON."""
+        if not os.path.exists(path):
+            return [] if "exchange_rates" in path else {}
+        with open(path, "r", encoding="utf-8") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return [] if "exchange_rates" in path else {}
+
+    # ------------------------------
+    # Безопасная запись (атомарная)
+    # ------------------------------
     def _atomic_write(self, file_path: str, data) -> None:
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         fd, tmp = tempfile.mkstemp()
@@ -26,18 +41,12 @@ class RatesStorage:
                 except OSError:
                     pass
 
-    def _read_json(self, path: str):
-        if not os.path.exists(path):
-            return [] if "exchange_rates" in path else {}
-        with open(path, "r", encoding="utf-8") as f:
-            try:
-                return json.load(f)
-            except json.JSONDecodeError:
-                return [] if "exchange_rates" in path else {}
-
+    # ------------------------------
+    # Добавление в историю
+    # ------------------------------
     def append_exchange_history(self, rates: dict):
         """Добавляем новые записи в exchange_rates.json."""
-        history = self._read_json(self.config.HISTORY_FILE_PATH)
+        history = self.read_json(self.config.HISTORY_FILE_PATH)
         if not isinstance(history, list):
             history = []
 
@@ -55,6 +64,9 @@ class RatesStorage:
 
         self._atomic_write(self.config.HISTORY_FILE_PATH, history)
 
+    # ------------------------------
+    # Обновление кэша
+    # ------------------------------
     def update_rates_cache(self, rates: dict):
         """Перезаписываем актуальный кэш rates.json."""
         cache = {
