@@ -35,11 +35,11 @@ poetry run project
 
 ## Parser Service
 Parser Service обновляет курсы валют из двух источников:
-CoinGecko — криптовалюты (BTC, ETH, SOL)
-ExchangeRate-API — фиатные валюты (USD, EUR, GBP, RUB)
+- **CoinGecko** — криптовалюты (BTC, ETH, SOL);
+- **ExchangeRate-API** — фиатные валюты (USD, EUR, GBP, RUB)
 Хранилище данных:
-data/rates.json — актуальные курсы (кэш для Core)
-data/exchange_rates.json — история обновлений
+-**data/rates.json** — актуальные курсы (кэш для Core)
+-**data/exchange_rates.json** — история обновлений
 
 ## Кэш и TTL
 Core Service использует rates.json для мгновенного доступа к данным.
