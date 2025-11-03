@@ -1,6 +1,5 @@
 import hashlib
 import json
-import os
 import random
 import shlex
 import string
@@ -13,7 +12,6 @@ from valutatrade_hub.core.exceptions import (
     InsufficientFundsError,
 )
 from valutatrade_hub.core.usecases import buy, get_rate, sell
-
 from valutatrade_hub.infra.settings import SettingsLoader
 
 settings = SettingsLoader()
@@ -319,7 +317,10 @@ def run_app() -> None:
 
                 except CurrencyNotFoundError as e:
                     print(str(e))
-                    print("Попробуйте команду help или проверьте список доступных валют.")
+                    print(
+                        "Попробуйте команду help "
+                        "или проверьте список доступных валют."
+                    )
                 except ApiRequestError as e:
                     print(f"Ошибка API: {e}. Повторите попытку позже.")
                 except Exception as e:

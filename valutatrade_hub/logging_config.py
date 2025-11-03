@@ -1,5 +1,6 @@
 import logging
 import os
+
 from valutatrade_hub.infra.settings import SettingsLoader
 
 
