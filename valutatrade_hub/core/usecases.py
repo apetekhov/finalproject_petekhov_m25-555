@@ -15,10 +15,9 @@ from valutatrade_hub.logging_config import setup_logger
 logger = setup_logger()
 settings = SettingsLoader()
 
-DATA_DIR = settings.get("DATA_DIR")
-USERS_FILE = os.path.join(DATA_DIR, "users.json")
-PORTFOLIOS_FILE = os.path.join(DATA_DIR, "portfolios.json")
-RATES_FILE = os.path.join(DATA_DIR, "rates.json")
+USERS_FILE = settings.get("USERS_FILE")
+PORTFOLIOS_FILE = settings.get("PORTFOLIOS_FILE")
+RATES_FILE = settings.get("RATES_FILE")
 
 
 # ---------------------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---------------------- #
@@ -44,6 +43,8 @@ def load_json(file_path: str) -> list | dict:
 
 
 def save_json(file_path: str, data) -> None:
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
@@ -89,7 +90,7 @@ def buy(user_id: int, currency_code: str, amount: float) -> None:
     # Ищем нужный портфель пользователя
     portfolio = next((p for p in portfolios if p["user_id"] == user_id), None)
     if not portfolio:
-        raise ValueError(f"Портфель для user_id={user_id} не найден")
+        portfolio = {"user_id": user_id, "wallets": {}}
 
     wallets = portfolio["wallets"]
     if currency_code not in wallets:
@@ -110,6 +111,14 @@ def buy(user_id: int, currency_code: str, amount: float) -> None:
         pass
 
     # Сохраняем обновлённый список портфелей
+    portfolios = load_json(PORTFOLIOS_FILE)
+    if not isinstance(portfolios, list):
+        portfolios = []
+    existing = next((p for p in portfolios if p["user_id"] == user_id), None)
+    if existing:
+        existing.update(portfolio)
+    else:
+        portfolios.append(portfolio)
     save_json(PORTFOLIOS_FILE, portfolios)
 
     logger.info(

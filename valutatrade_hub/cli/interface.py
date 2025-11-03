@@ -5,6 +5,7 @@ import random
 import shlex
 import string
 from datetime import datetime
+from pathlib import Path
 
 from valutatrade_hub.core.exceptions import (
     ApiRequestError,
@@ -13,27 +14,34 @@ from valutatrade_hub.core.exceptions import (
 )
 from valutatrade_hub.core.usecases import buy, get_rate, sell
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-USERS_FILE = os.path.join(DATA_DIR, "users.json")
-PORTFOLIOS_FILE = os.path.join(DATA_DIR, "portfolios.json")
+from valutatrade_hub.infra.settings import SettingsLoader
+
+settings = SettingsLoader()
+USERS_FILE = settings.get("USERS_FILE")
+PORTFOLIOS_FILE = settings.get("PORTFOLIOS_FILE")
 CURRENT_USER: dict | None = None
 
 
-def load_json(file_path: str) -> list | dict:
-    """Безопасная загрузка JSON с возвратом пустого списка/словаря при ошибке."""
-    if not os.path.exists(file_path):
-        return [] if file_path.endswith("users.json") else {}
-    with open(file_path, "r", encoding="utf-8") as f:
+def load_json(file_path) -> list | dict:
+    file_path = Path(file_path)
+    if not file_path.exists():
+        if file_path.name in ("users.json", "portfolios.json"):
+            return []
+        return {}
+    with file_path.open("r", encoding="utf-8") as f:
         try:
             return json.load(f)
         except json.JSONDecodeError:
-            return [] if file_path.endswith("users.json") else {}
+            if file_path.name in ("users.json", "portfolios.json"):
+                return []
+            return {}
 
 
-def save_json(file_path: str, data) -> None:
-    """Безопасное сохранение JSON."""
-    with open(file_path, "w", encoding="utf-8") as f:
+def save_json(file_path, data) -> None:
+    file_path = Path(file_path)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with file_path.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 
@@ -223,23 +231,30 @@ def run_app() -> None:
             command_line = input("> ").strip()
             if not command_line:
                 continue
+
             parts = shlex.split(command_line)
             command, args = parts[0], parts[1:]
 
             if command == "exit":
                 print("Выход из программы.")
                 break
+
             elif command == "help":
                 print(
                     "Доступные команды: "
-                    "register, login, show-portfolio, buy, sell, get-rate, exit"
+                    "register, login, show-portfolio, buy, sell, "
+                    "get-rate, update-rates, show-rates, exit"
                 )
+
             elif command == "register":
                 register(args)
+
             elif command == "login":
                 login(args)
+
             elif command == "show-portfolio":
                 show_portfolio(args)
+
             elif command == "buy":
                 try:
                     args_dict = {args[i]: args[i + 1] for i in range(0, len(args), 2)}
@@ -261,6 +276,7 @@ def run_app() -> None:
                     print(f"Не удалось получить курс: {e}")
                 except Exception as e:
                     print(f"Неожиданная ошибка: {e}")
+
             elif command == "sell":
                 try:
                     args_dict = {args[i]: args[i + 1] for i in range(0, len(args), 2)}
@@ -284,6 +300,7 @@ def run_app() -> None:
                     print(f"Ошибка ввода: {e}")
                 except Exception as e:
                     print(f"Неожиданная ошибка: {e}")
+
             elif command == "get-rate":
                 try:
                     args_dict = {args[i]: args[i + 1] for i in range(0, len(args), 2)}
@@ -302,14 +319,12 @@ def run_app() -> None:
 
                 except CurrencyNotFoundError as e:
                     print(str(e))
-                    print(
-                        "Попробуйте команду help "
-                        "или проверьте список доступных валют."
-                    )
+                    print("Попробуйте команду help или проверьте список доступных валют.")
                 except ApiRequestError as e:
                     print(f"Ошибка API: {e}. Повторите попытку позже.")
                 except Exception as e:
                     print(f"Неожиданная ошибка: {e}")
+
             elif command == "update-rates":
                 from valutatrade_hub.parser_service.updater import RatesUpdater
                 try:
@@ -317,26 +332,33 @@ def run_app() -> None:
                     updater.run_update()
                 except Exception as e:
                     print(f"Ошибка обновления: {e}")
+
             elif command == "show-rates":
-                from valutatrade_hub.parser_service.config import ParserConfig
-                from valutatrade_hub.parser_service.storage import read_json
+                from valutatrade_hub.parser_service.storage import RatesStorage
 
-                config = ParserConfig()
-                data = read_json(config.RATES_FILE_PATH)
+                try:
+                    storage = RatesStorage()
+                    data = storage.read_json(storage.config.RATES_FILE_PATH)
 
-                if not data or "pairs" not in data or not data["pairs"]:
-                    print("Локальный кеш курсов пуст. Выполните 'update-rates'.")
-                    continue
+                    if not data or "pairs" not in data or not data["pairs"]:
+                        print("Локальный кеш курсов пуст. Выполните 'update-rates'.")
+                        continue
 
-                print(f"Rates from cache (updated at {data['last_refresh']}):")
-                for pair, info in data["pairs"].items():
-                    print(f"- {pair}: {info['rate']:.5f} ({info['source']})")
+                    print(f"Rates from cache (updated at {data['last_refresh']}):")
+                    for pair, info in data["pairs"].items():
+                        print(f"- {pair}: {info['rate']:.5f} ({info['source']})")
+
+                except FileNotFoundError:
+                    print("Файл кеша не найден. Выполните 'update-rates'.")
+                except Exception as e:
+                    print(f"Ошибка при чтении кеша: {e}")
+
             else:
                 print(f"Неизвестная команда: {command}")
 
         except (KeyboardInterrupt, EOFError):
             print("\nВыход из программы.")
             break
-
+        
 if __name__ == "__main__":
     run_app()

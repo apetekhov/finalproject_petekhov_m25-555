@@ -1,49 +1,59 @@
+from __future__ import annotations
+
 import os
+from pathlib import Path
 from typing import Any
 
 
 class SettingsLoader:
-    """
-    Singleton-класс для загрузки и хранения конфигурации проекта.
-    Используется __new__, чтобы гарантировать существование только одного экземпляра.
-    """
+    """Singleton: хранит конфиг путей и TTL и выдаёт их всем слоям."""
 
-    _instance = None  # хранит единственный экземпляр класса
+    _instance: "SettingsLoader | None" = None
 
-    def __new__(cls):
+    def __new__(cls) -> "SettingsLoader":
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            # Инициализация при первом создании
-            cls._instance._initialized = False
+            cls._instance = super().__new__(cls)  # type: ignore
+            cls._instance._init_values()
         return cls._instance
 
-    def __init__(self):
-        if self._initialized:
-            return  # предотвратить повторную инициализацию
+    def _init_values(self) -> None:
+        data_dir = self._resolve_data_dir()
 
-        self.config = self._load_default_config()
-        self._initialized = True
+        self._values: dict[str, Any] = {
+            # директория с данными
+            "DATA_DIR": str(data_dir),
 
-    def _load_default_config(self) -> dict[str, Any]:
-        """Загружает конфигурацию проекта (можно расширить для чтения config.json)."""
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-        data_dir = os.path.join(base_dir, "data")
-        logs_dir = os.path.join(base_dir, "logs")
+            # файлы данных
+            "USERS_FILE": str(data_dir / "users.json"),
+            "PORTFOLIOS_FILE": str(data_dir / "portfolios.json"),
+            "RATES_FILE": str(data_dir / "rates.json"),
 
-        return {
-            "DATA_DIR": data_dir,
-            "USERS_FILE": os.path.join(data_dir, "users.json"),
-            "PORTFOLIOS_FILE": os.path.join(data_dir, "portfolios.json"),
-            "RATES_FILE": os.path.join(data_dir, "rates.json"),
-            "LOGS_DIR": logs_dir,
-            "BASE_CURRENCY": "USD",
-            "RATES_TTL_SECONDS": 300,  # 5 минут
+            # TTL курсов в секундах
+            "RATES_TTL_SECONDS": int(os.getenv("VALUTATRADE_RATES_TTL", "600")),
         }
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Возвращает значение по ключу из конфигурации."""
-        return self.config.get(key, default)
+    def _resolve_data_dir(self) -> Path:
+        """Приоритет:
+        1) VALUTATRADE_DATA_DIR (если задана)
+        2) ./data в текущей рабочей директории (если существует)
+        3) ~/.valutatrade_hub/data (создаём при необходимости)
+        """
+        # 1) окружение
+        env_dir = os.getenv("VALUTATRADE_DATA_DIR")
+        if env_dir:
+            p = Path(env_dir).expanduser().resolve()
+            p.mkdir(parents=True, exist_ok=True)
+            return p
 
-    def reload(self) -> None:
-        """Перезагрузка конфигурации (на будущее — если будет внешний config.json)."""
-        self.config = self._load_default_config()
+        # 2) ./data рядом с тем местом, откуда запускают процесс
+        cwd_data = Path.cwd() / "data"
+        if cwd_data.exists() and cwd_data.is_dir():
+            return cwd_data.resolve()
+
+        # 3) дефолт: домашняя директория
+        home_data = Path.home() / ".valutatrade_hub" / "data"
+        home_data.mkdir(parents=True, exist_ok=True)
+        return home_data
+
+    def get(self, key: str, default: Any | None = None) -> Any:
+        return self._values.get(key, default)

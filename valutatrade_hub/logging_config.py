@@ -1,30 +1,23 @@
 import logging
 import os
-from logging.handlers import RotatingFileHandler
-
 from valutatrade_hub.infra.settings import SettingsLoader
 
 
-def setup_logger() -> logging.Logger:
-    """Создаёт и настраивает ротацию логов для доменных операций."""
+def setup_logger():
+    """Настраивает единый логгер приложения."""
     settings = SettingsLoader()
-    logs_dir = settings.get("LOGS_DIR")
-
+    logs_dir = settings.get("LOGS_DIR") or "logs"
     os.makedirs(logs_dir, exist_ok=True)
-    log_file = os.path.join(logs_dir, "actions.log")
 
-    logger = logging.getLogger("valutatrade")
-    logger.setLevel(logging.INFO)
+    log_file = os.path.join(logs_dir, "app.log")
 
-    # Проверка на дублирование хендлеров при повторных вызовах
-    if not logger.handlers:
-        handler = RotatingFileHandler(
-            log_file, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
-        )
-        formatter = logging.Formatter(
-            "%(levelname)s %(asctime)s %(message)s", datefmt="%Y-%m-%dT%H:%M:%S"
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
+    )
 
-    return logger
+    return logging.getLogger("ValutaTrade")
