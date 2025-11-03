@@ -37,6 +37,7 @@ poetry run project
 Parser Service обновляет курсы валют из двух источников:
 - **CoinGecko** — криптовалюты (BTC, ETH, SOL);
 - **ExchangeRate-API** — фиатные валюты (USD, EUR, GBP, RUB)
+
 Хранилище данных:
 - **data/rates.json** — актуальные курсы (кэш для Core)
 - **data/exchange_rates.json** — история обновлений
